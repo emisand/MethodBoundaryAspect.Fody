@@ -5,7 +5,7 @@
 
   <PropertyGroup>
     <Product>MethodBoundaryAspect</Product>
-    <PackageId>MethodBoundaryAspect.Fody</PackageId>
+    <PackageId>Emisand.MethodBoundaryAspect.Fody</PackageId>
     <Authors>Ralf Kornelius, Marcell Spies, Martin Ayasse, Contributors</Authors>
     <Company>VESCON GmbH</Company>
     <Copyright>Copyright © $([System.DateTime]::Now.ToString(yyyy)) VESCON GmbH</Copyright>
@@ -36,12 +36,15 @@
 
   <PropertyGroup>
     <AssetTargetFallback>netstandard2.0</AssetTargetFallback>
+    <Version>2.1.0</Version>
+    <FileVersion>2.1.0</FileVersion>
+    <AssemblyName>Emisand.MethodBoundaryAspect</AssemblyName>
   </PropertyGroup>
   <!--Fixes problems with buildorder when using dotnet build-->
 
   <ItemGroup>
     <PackageReference Include="Fody" Version="6.0.5" PrivateAssets="None" />
     <PackageReference Include="FodyPackaging" Version="6.0.5" PrivateAssets="All" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
   </ItemGroup>
 </Project>
