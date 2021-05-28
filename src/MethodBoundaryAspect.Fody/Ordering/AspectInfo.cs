@@ -26,6 +26,9 @@ namespace MethodBoundaryAspect.Fody.Ordering
             InitOrder(aspectAttributes);
             InitSkipProperties(aspectAttributes);
             InitTargetMembers();
+            InitTargetTypes();
+            InitTargetInterfaces();
+            InitTargetTypeOrMethodAttributes();
             InitChangingInputArguments(aspectAttributes);
         }
 
@@ -60,8 +63,54 @@ namespace MethodBoundaryAspect.Fody.Ordering
                 MethodAttributes.Public
             };
 
+        public IEnumerable<string> AttributeTargetTypes { get; set; } = new List<string>();
+
+        public IEnumerable<string> AttributeTargetInterfaces { get; set; } = new List<string>();
+
+        public IEnumerable<string> AttributeTargetTypeOrMethodAttributes { get; set; } = new List<string>();
+
         public bool HasTargetMemberAttribute(MethodAttributes visibility) =>
             AttributeTargetMemberAttributes.Contains(visibility);
+
+        public bool HasTargetTypeInterfaceOrAttribute(MethodDefinition method)
+        {
+            if ((AttributeTargetTypes == null || !AttributeTargetTypes.Any())
+                && (AttributeTargetInterfaces == null || !AttributeTargetInterfaces.Any())
+                && (AttributeTargetTypeOrMethodAttributes == null || !AttributeTargetTypeOrMethodAttributes.Any()))
+            {
+                return true;
+            }
+
+            bool result = false;
+
+            if (AttributeTargetTypes != null && AttributeTargetTypes.Any())
+            {
+                result = AttributeTargetTypes.Contains(method.DeclaringType.FullName);
+            }
+
+            if (!result && AttributeTargetInterfaces != null && AttributeTargetInterfaces.Any())
+            {
+                bool hasInterface = method.DeclaringType.Interfaces.Any(i => AttributeTargetInterfaces.Contains(i.InterfaceType.Resolve().FullName));
+
+                TypeDefinition baseType = method.DeclaringType.BaseType?.Resolve();
+
+                while (!hasInterface && baseType != null)
+                {
+                    hasInterface = baseType.Interfaces != null && baseType.Interfaces.Any(i => AttributeTargetInterfaces.Contains(i.InterfaceType.Resolve().FullName));
+                    baseType = method.DeclaringType.BaseType?.Resolve();
+                }
+
+                result = hasInterface;
+            }
+
+            if (!result && AttributeTargetTypeOrMethodAttributes != null && AttributeTargetTypeOrMethodAttributes.Any())
+            {
+                result = method.CustomAttributes.Any(a => AttributeTargetTypeOrMethodAttributes.Contains(a.AttributeType.FullName))
+                    || method.DeclaringType.CustomAttributes.Any(a => AttributeTargetTypeOrMethodAttributes.Contains(a.AttributeType.FullName));
+            }
+
+            return result;
+        }
 
         private void InitRole(IEnumerable<CustomAttribute> aspectAttributes)
         {
@@ -73,7 +122,7 @@ namespace MethodBoundaryAspect.Fody.Ordering
             if (roleAttribute == null)
                 return;
 
-            var role = (string) roleAttribute.ConstructorArguments[0].Value;
+            var role = (string)roleAttribute.ConstructorArguments[0].Value;
             if (string.IsNullOrEmpty(role))
             {
                 var msg =
@@ -100,14 +149,14 @@ namespace MethodBoundaryAspect.Fody.Ordering
 
             foreach (var roleDependencyAttribute in AspectRoleDependencyAttributes)
             {
-                var role = (string) roleDependencyAttribute.ConstructorArguments[2].Value;
+                var role = (string)roleDependencyAttribute.ConstructorArguments[2].Value;
                 if (role == Role)
                 {
                     var msg = string.Format(AspectCanTHaveRoleAndBeOrderedBeforeOrAfterThatRole, Name, role);
                     throw new InvalidAspectConfigurationException(msg);
                 }
 
-                var position = (int) roleDependencyAttribute.ConstructorArguments[1].Value;
+                var position = (int)roleDependencyAttribute.ConstructorArguments[1].Value;
 
                 aspectOrder.AddRole(role, position);
             }
@@ -164,7 +213,7 @@ namespace MethodBoundaryAspect.Fody.Ordering
 
             var memberAttributes = new List<MethodAttributes>();
 
-            var attributes = (MulticastAttributes) targetMembersAttribute.Argument.Value;
+            var attributes = (MulticastAttributes)targetMembersAttribute.Argument.Value;
             if (attributes.HasFlag(MulticastAttributes.Private))
             {
                 memberAttributes.Add(MethodAttributes.Private);
@@ -198,6 +247,72 @@ namespace MethodBoundaryAspect.Fody.Ordering
             AllowChangingInputArguments = aspectAttributes
                 .Any(c => c.AttributeType.FullName == AttributeFullNames.AllowChangingInputArguments);
 
+        }
+
+        private void InitTargetTypes()
+        {
+            var targetTypesProperty = AspectAttribute.Properties
+                .FirstOrDefault(property => property.Name == AttributeNames.AttributeTargetTypes);
+
+            if (targetTypesProperty.Equals(default(CustomAttributeNamedArgument)))
+            {
+                return;
+            }
+
+            string targetTypesString = (string)targetTypesProperty.Argument.Value;
+
+            if (!string.IsNullOrEmpty(targetTypesString))
+            {
+                AttributeTargetTypes = targetTypesString
+                    .Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries)
+                    .Select(p => p.Trim())
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .ToArray();
+            }
+        }
+
+        private void InitTargetInterfaces()
+        {
+            var targetInterfacesProperty = AspectAttribute.Properties
+                   .FirstOrDefault(property => property.Name == AttributeNames.AttributeTargetInterfaces);
+
+            if (targetInterfacesProperty.Equals(default(CustomAttributeNamedArgument)))
+            {
+                return;
+            }
+
+            string targetInterfacesString = (string)targetInterfacesProperty.Argument.Value;
+
+            if (!string.IsNullOrEmpty(targetInterfacesString))
+            {
+                AttributeTargetInterfaces = targetInterfacesString
+                    .Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries)
+                    .Select(p => p.Trim())
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .ToArray();
+            }
+        }
+
+        private void InitTargetTypeOrMethodAttributes()
+        {
+            var targetTypeOrMethodAttributesProperty = AspectAttribute.Properties
+                   .FirstOrDefault(property => property.Name == AttributeNames.AttributeTargetTypeOrMethodAttributes);
+
+            if (targetTypeOrMethodAttributesProperty.Equals(default(CustomAttributeNamedArgument)))
+            {
+                return;
+            }
+
+            string targetTypeOrMethodAttributesString = (string)targetTypeOrMethodAttributesProperty.Argument.Value;
+
+            if (!string.IsNullOrEmpty(targetTypeOrMethodAttributesString))
+            {
+                AttributeTargetTypeOrMethodAttributes = targetTypeOrMethodAttributesString
+                    .Split(new char[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries)
+                    .Select(p => p.Trim())
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .ToArray();
+            }
         }
     }
 }

@@ -203,7 +203,8 @@ namespace MethodBoundaryAspect.Fody
                     .Concat(methodMethodBoundaryAspects)
                     .Where(IsMethodBoundaryAspect)
                     .Select(x => new AspectInfo(x))
-                    .Where(info => info.HasTargetMemberAttribute(methodVisibility))
+                    .Where(info => info.HasTargetMemberAttribute(methodVisibility) 
+                        && info.HasTargetTypeInterfaceOrAttribute(method))
                     .ToList();
                 if (aspectInfos.Count == 0)
                     continue;

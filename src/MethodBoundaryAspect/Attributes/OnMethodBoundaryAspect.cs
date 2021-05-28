@@ -5,8 +5,14 @@ namespace MethodBoundaryAspect.Fody.Attributes
 {
     public abstract class OnMethodBoundaryAspect : Attribute
     {
+        public string AttributeTargetInterfaces { get; set; }
+
         public MulticastAttributes AttributeTargetMemberAttributes { get; set; } =
-            MulticastAttributes.AnyVisibility;
+                    MulticastAttributes.AnyVisibility;
+
+        public string AttributeTargetTypeOrMethodAttributes { get; set; }
+
+        public string AttributeTargetTypes { get; set; }
 
         public virtual void OnEntry(MethodExecutionArgs arg)
         {
